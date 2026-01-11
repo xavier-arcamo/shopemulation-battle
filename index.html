@@ -1,1 +1,1864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lane-Based Battle/Skirmish Simulator</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #0f1115;
+      --panel: #161a23;
+      --panel-strong: #1e2431;
+      --card: #1b2030;
+      --text: #e8edf8;
+      --muted: #9aa6bf;
+      --accent: #5dd5ff;
+      --accent-strong: #4aa6f1;
+      --positive: #6ee7b7;
+      --warning: #fcd34d;
+      --danger: #f97316;
+      --border: rgba(255, 255, 255, 0.08);
+      --shadow: 0 18px 40px rgba(10, 12, 20, 0.35);
+      font-family: "Inter", "Segoe UI", sans-serif;
+    }
 
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 22px 28px;
+      background: linear-gradient(120deg, #111827, #1f2937);
+      border-bottom: 1px solid var(--border);
+    }
+
+    header h1 {
+      margin: 0 0 6px;
+      font-size: 1.5rem;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(320px, 420px) 1fr;
+      gap: 18px;
+      padding: 18px 24px 28px;
+    }
+
+    .pane {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .card h2 {
+      margin: 0 0 12px;
+      font-size: 1.1rem;
+    }
+
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 0.95rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+      background: var(--panel-strong);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 0.9rem;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .slider-value {
+      width: 38px;
+      text-align: right;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .pill {
+      background: rgba(93, 213, 255, 0.16);
+      color: var(--accent);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      border-radius: 999px;
+      padding: 4px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .badge.success { color: var(--positive); }
+    .badge.warn { color: var(--warning); }
+    .badge.danger { color: var(--danger); }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .tab-button {
+      background: var(--panel);
+      border: 1px solid transparent;
+      color: var(--muted);
+      padding: 6px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tab-button.active {
+      background: rgba(93, 213, 255, 0.2);
+      border-color: rgba(93, 213, 255, 0.5);
+      color: var(--text);
+    }
+
+    .lane-section {
+      border: 1px dashed rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 12px;
+      background: var(--panel);
+    }
+
+    .unit-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    .unit-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .unit-actions button,
+    .btn {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: var(--panel-strong);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .btn.primary {
+      background: var(--accent-strong);
+      border-color: transparent;
+      color: #0f1115;
+      font-weight: 600;
+    }
+
+    .btn.secondary {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .sticky-controls {
+      position: sticky;
+      top: 16px;
+      z-index: 10;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      background: var(--panel-strong);
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+    }
+
+    .summary-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .summary-card h4 {
+      margin: 0 0 6px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .summary-card p {
+      margin: 0;
+      font-size: 1.05rem;
+    }
+
+    .lane-dashboard {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .lane-column {
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 14px;
+      padding: 10px;
+      border: 1px solid var(--border);
+    }
+
+    .lane-column h4 {
+      margin: 0 0 8px;
+      font-size: 0.9rem;
+    }
+
+    .unit-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .unit-chip {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px;
+      cursor: pointer;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .unit-chip:hover {
+      transform: translateY(-1px);
+      border-color: rgba(93, 213, 255, 0.5);
+    }
+
+    .bars {
+      display: grid;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .bar {
+      height: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar > span {
+      display: block;
+      height: 100%;
+    }
+
+    .bar.morale span { background: #34d399; }
+    .bar.cohesion span { background: #60a5fa; }
+    .bar.fatigue span { background: #f97316; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    th, td {
+      padding: 8px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+    }
+
+    th { color: var(--muted); font-weight: 500; }
+
+    .timeline {
+      display: grid;
+      gap: 6px;
+    }
+
+    .spark {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(2px, 1fr));
+      gap: 2px;
+      align-items: end;
+      height: 80px;
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 10px;
+      padding: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .spark span {
+      display: block;
+      width: 100%;
+      border-radius: 4px 4px 0 0;
+      background: rgba(93, 213, 255, 0.4);
+    }
+
+    .spark span.sideB {
+      background: rgba(248, 113, 113, 0.4);
+    }
+
+    .log {
+      max-height: 240px;
+      overflow: auto;
+      display: grid;
+      gap: 6px;
+    }
+
+    .log-item {
+      padding: 8px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      font-size: 0.82rem;
+    }
+
+    .log-item strong {
+      color: var(--accent);
+    }
+
+    .why-panel {
+      min-height: 160px;
+      border-radius: 12px;
+      border: 1px dashed rgba(255, 255, 255, 0.2);
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .toggle-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .toggle-row label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .warning {
+      color: var(--warning);
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 1100px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Lane-Based Battle/Skirmish Simulator</h1>
+    <p>Configure forces, tactics, terrain, and commanders. Run a deterministic lane battle with explainable outcomes.</p>
+  </header>
+
+  <main>
+    <section class="pane" aria-label="Configuration">
+      <div class="card" id="battle-setup">
+        <h2>Battle Setup</h2>
+        <div class="grid-2">
+          <div class="field">
+            <label for="battle-name">Battle name</label>
+            <input id="battle-name" type="text" data-path="battle.name" />
+          </div>
+          <div class="field">
+            <label for="battle-time-step">Time step (seconds)</label>
+            <select id="battle-time-step" data-path="battle.timeStepSeconds"></select>
+          </div>
+          <div class="field">
+            <label for="battle-duration">Max duration (minutes)</label>
+            <input id="battle-duration" type="number" min="10" max="720" data-path="battle.maxDurationMinutes" />
+          </div>
+          <div class="field">
+            <label for="battle-seed">Seed (optional)</label>
+            <input id="battle-seed" type="text" data-path="battle.seed" />
+          </div>
+        </div>
+        <div class="field" style="margin-top:10px;">
+          <label for="battle-import">Import battle setup (JSON)</label>
+          <input id="battle-import" type="file" accept="application/json" aria-label="Import battle setup JSON" />
+        </div>
+      </div>
+
+      <div class="card" id="environment">
+        <h2>Terrain &amp; Weather</h2>
+        <div class="grid-2">
+          <div class="field">
+            <label for="env-weather">Weather</label>
+            <select id="env-weather" data-path="environment.weather"></select>
+          </div>
+          <div class="field">
+            <label for="env-temp">Temperature</label>
+            <select id="env-temp" data-path="environment.temperature"></select>
+          </div>
+          <div class="field">
+            <label for="env-visibility">Visibility</label>
+            <select id="env-visibility" data-path="environment.visibility"></select>
+          </div>
+          <div class="field">
+            <label for="env-ground">Ground</label>
+            <select id="env-ground" data-path="environment.ground"></select>
+          </div>
+        </div>
+        <div class="lane-section" id="env-lanes"></div>
+      </div>
+
+      <div class="card" id="sides">
+        <h2>Forces</h2>
+        <div class="tabs" id="side-tabs"></div>
+        <div id="side-settings"></div>
+      </div>
+
+      <div class="card" id="commanders">
+        <h2>Commanders</h2>
+        <div id="commander-settings"></div>
+      </div>
+
+      <div class="card" id="modifiers">
+        <h2>Global Modifiers</h2>
+        <div id="modifier-settings"></div>
+      </div>
+
+      <div class="card" id="lanes">
+        <h2>Wings / Lanes</h2>
+        <div class="tabs" id="lane-tabs"></div>
+        <div id="lane-settings"></div>
+        <p class="warning" id="lane-warning" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
+    <section class="pane" aria-label="Simulation Output">
+      <div class="sticky-controls" aria-label="Simulation controls">
+        <button class="btn primary" id="run-btn">Run</button>
+        <button class="btn secondary" id="pause-btn">Pause</button>
+        <button class="btn secondary" id="step-btn">Step</button>
+        <button class="btn" id="reset-btn">Reset</button>
+        <div class="field" style="min-width:160px;">
+          <label for="speed-select">Sim speed multiplier</label>
+          <select id="speed-select"></select>
+        </div>
+        <div class="toggle-row" style="margin-left:auto;">
+          <label><input type="checkbox" id="toggle-modifiers" /> Modifier breakdown</label>
+          <label><input type="checkbox" id="toggle-log" /> Event log</label>
+          <label><input type="checkbox" id="toggle-compact" /> Compact mode</label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Battle Summary</h2>
+        <div class="summary-grid" id="summary-cards"></div>
+      </div>
+
+      <div class="card">
+        <h2>Lane Dashboard</h2>
+        <div class="lane-dashboard" id="lane-dashboard"></div>
+      </div>
+
+      <div class="card">
+        <h2>Casualties Table</h2>
+        <div style="overflow:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Side</th>
+                <th>Lane</th>
+                <th>Unit</th>
+                <th>Starting</th>
+                <th>Current</th>
+                <th>Killed</th>
+                <th>Wounded</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="casualties-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Timeline Strength</h2>
+        <div class="timeline">
+          <div>
+            <span class="pill">Side A</span>
+            <div class="spark" id="spark-a"></div>
+          </div>
+          <div>
+            <span class="pill">Side B</span>
+            <div class="spark" id="spark-b"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="event-card">
+        <h2>Event Log</h2>
+        <div class="log" id="event-log"></div>
+      </div>
+
+      <div class="card" id="why-card">
+        <h2>Why This Unit?</h2>
+        <div class="why-panel" id="why-panel">
+          <p>Select a unit from the lane dashboard to see modifier breakdowns.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Export</h2>
+        <div class="toggle-row">
+          <button class="btn primary" id="export-setup">Export Battle Setup JSON</button>
+          <button class="btn secondary" id="export-report">Export Battle Report JSON</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const options = {
+      timeSteps: [10, 20, 30, 60, 120, 300],
+      weather: ["clear", "rain", "snow", "fog", "windy"],
+      temperature: ["mild", "cold", "hot"],
+      visibility: ["good", "reduced", "poor"],
+      ground: ["dry", "muddy", "icy"],
+      laneTerrain: ["open", "hill", "woods", "marsh", "urban", "riverbank"],
+      laneAdvantage: ["neutral", "sideA_advantage", "sideB_advantage"],
+      doctrine: ["defensive", "balanced", "aggressive"],
+      tactics: ["hold", "advance", "shield_wall", "charge", "flank_attempt", "skirmish", "withdraw", "reserve"],
+      unitTypes: ["spearmen", "swordsmen", "archers", "crossbowmen", "light_cavalry", "heavy_cavalry", "skirmishers", "pikemen"],
+      speed: [1, 2, 4, 8, 16]
+    };
+
+    const unitBaselines = {
+      spearmen: { melee: 1.0, defense: 1.1, shock: 0.9, range: 0.0 },
+      swordsmen: { melee: 1.1, defense: 1.0, shock: 1.0, range: 0.0 },
+      pikemen: { melee: 1.0, defense: 1.2, shock: 0.85, range: 0.0 },
+      skirmishers: { melee: 0.8, defense: 0.85, shock: 0.8, range: 0.7 },
+      archers: { melee: 0.7, defense: 0.8, shock: 0.7, range: 1.0 },
+      crossbowmen: { melee: 0.7, defense: 0.85, shock: 0.7, range: 1.1 },
+      light_cavalry: { melee: 1.0, defense: 0.95, shock: 1.2, range: 0.0 },
+      heavy_cavalry: { melee: 1.05, defense: 1.05, shock: 1.5, range: 0.0 }
+    };
+
+    const tacticsModifiers = {
+      hold: { meleeDefense: 1.05, meleeAttack: 0.95, cohesionLoss: 0.9, fatigueGain: 0.9, maneuverBonus: -0.1 },
+      advance: { meleeDefense: 1.0, meleeAttack: 1.0, cohesionLoss: 1.05, fatigueGain: 1.05, maneuverBonus: 0.0 },
+      shield_wall: { meleeDefense: 1.25, meleeAttack: 0.85, missileTaken: 0.75, cohesionLoss: 0.8, fatigueGain: 1.05, flankVulnerability: 1.2 },
+      charge: { meleeDefense: 0.9, meleeAttack: 1.15, shockBonus: 1.4, cohesionLoss: 1.2, fatigueGain: 1.3, maneuverBonus: 0.05 },
+      flank_attempt: { meleeDefense: 1.0, meleeAttack: 0.9, maneuverBonus: 0.25, fatigueGain: 1.15, cohesionLoss: 1.1 },
+      skirmish: { meleeDefense: 0.9, meleeAttack: 0.8, missileAttack: 1.15, fatigueGain: 1.0, cohesionLoss: 0.95, disorderBonus: 0.1 },
+      withdraw: { meleeDefense: 0.95, meleeAttack: 0.8, damageTaken: 0.9, moraleLoss: 1.1, cohesionLoss: 1.2, fatigueGain: 0.9 },
+      reserve: { meleeDefense: 0.95, meleeAttack: 0.9, fatigueRecovery: 1.25, moraleRecovery: 1.1, engagementDelay: true }
+    };
+
+    const terrainModifiers = {
+      open: { move: 1.0, cohesionLoss: 1.0, cavShock: 1.0, missile: 1.0 },
+      hill: { move: 0.9, cohesionLoss: 1.05, uphillAttack: 0.9, downhillDefense: 0.95 },
+      woods: { move: 0.8, cohesionLoss: 1.15, cavShock: 0.6, missile: 0.85 },
+      marsh: { move: 0.7, cohesionLoss: 1.25, cavShock: 0.5, missile: 0.9 },
+      urban: { move: 0.75, cohesionLoss: 1.15, cavShock: 0.65, missile: 0.9 },
+      riverbank: { move: 0.85, cohesionLoss: 1.2, cavShock: 0.7, missile: 0.95 }
+    };
+
+    const weatherModifiers = {
+      clear: { missile: 1.0, fatigueGain: 1.0, visibility: 1.0 },
+      rain: { missile: 0.9, fatigueGain: 1.05, visibility: 0.95 },
+      snow: { missile: 0.85, fatigueGain: 1.15, visibility: 0.9 },
+      fog: { missile: 0.7, fatigueGain: 1.0, visibility: 0.75 },
+      windy: { missile: 0.85, fatigueGain: 1.0, visibility: 0.95 }
+    };
+
+    const groundModifiers = {
+      dry: { move: 1.0, shock: 1.0, fatigueGain: 1.0 },
+      muddy: { move: 0.85, shock: 0.9, fatigueGain: 1.1 },
+      icy: { move: 0.8, shock: 0.85, fatigueGain: 1.15 }
+    };
+
+    const defaultSetup = {
+      battle: {
+        name: "Battle of ____",
+        timeStepSeconds: 30,
+        maxDurationMinutes: 180,
+        seed: ""
+      },
+      environment: {
+        weather: "clear",
+        temperature: "mild",
+        visibility: "good",
+        ground: "dry",
+        lanes: {
+          left: { terrain: "open", advantage: "neutral" },
+          center: { terrain: "hill", advantage: "neutral" },
+          right: { terrain: "open", advantage: "neutral" }
+        }
+      },
+      modifiers: {
+        randomness: 25,
+        lethality: 50,
+        moraleShock: 55
+      },
+      sideA: {
+        name: "Side A",
+        doctrine: "balanced",
+        baseDiscipline: 55,
+        baseMorale: 55,
+        commander: { name: "Commander A", leadership: 60, tactics: 55, caution: 50, charisma: 55 },
+        lanes: {}
+      },
+      sideB: {
+        name: "Side B",
+        doctrine: "balanced",
+        baseDiscipline: 55,
+        baseMorale: 55,
+        commander: { name: "Commander B", leadership: 60, tactics: 55, caution: 50, charisma: 55 },
+        lanes: {}
+      }
+    };
+
+    const defaultUnit = (name, type) => ({
+      id: crypto.randomUUID(),
+      name,
+      type,
+      size: 300,
+      training: 50,
+      armor: 40,
+      weaponQuality: 50,
+      morale: 55,
+      cohesion: 70,
+      fatigue: 10,
+      rangedSkill: 40,
+      speed: 50
+    });
+
+    const laneTemplate = (tactic = "hold") => ({
+      tactic,
+      aggressiveness: 50,
+      coordination: 50,
+      laneCommander: null,
+      units: [defaultUnit("1st Cohort", "spearmen"), defaultUnit("2nd Cohort", "archers")]
+    });
+
+    ["left", "center", "right"].forEach((lane, index) => {
+      defaultSetup.sideA.lanes[lane] = laneTemplate(index === 1 ? "advance" : "hold");
+      defaultSetup.sideB.lanes[lane] = laneTemplate(index === 1 ? "advance" : "hold");
+      defaultSetup.sideB.lanes[lane].units = [defaultUnit("Guard", "swordsmen"), defaultUnit("Skirmishers", "skirmishers")];
+    });
+
+    const state = {
+      setup: structuredClone(defaultSetup),
+      runtime: null,
+      timer: null,
+      speed: 4,
+      ui: {
+        activeSide: "sideA",
+        activeLaneSide: "sideA",
+        activeLane: "left",
+        showModifiers: true,
+        showLog: true,
+        compact: false,
+        selectedUnit: null
+      }
+    };
+
+    const elements = {
+      battleName: document.getElementById("battle-name"),
+      battleTimeStep: document.getElementById("battle-time-step"),
+      battleDuration: document.getElementById("battle-duration"),
+      battleSeed: document.getElementById("battle-seed"),
+      battleImport: document.getElementById("battle-import"),
+      envWeather: document.getElementById("env-weather"),
+      envTemp: document.getElementById("env-temp"),
+      envVisibility: document.getElementById("env-visibility"),
+      envGround: document.getElementById("env-ground"),
+      envLanes: document.getElementById("env-lanes"),
+      sideTabs: document.getElementById("side-tabs"),
+      sideSettings: document.getElementById("side-settings"),
+      commanderSettings: document.getElementById("commander-settings"),
+      modifierSettings: document.getElementById("modifier-settings"),
+      laneTabs: document.getElementById("lane-tabs"),
+      laneSettings: document.getElementById("lane-settings"),
+      laneWarning: document.getElementById("lane-warning"),
+      runBtn: document.getElementById("run-btn"),
+      pauseBtn: document.getElementById("pause-btn"),
+      stepBtn: document.getElementById("step-btn"),
+      resetBtn: document.getElementById("reset-btn"),
+      speedSelect: document.getElementById("speed-select"),
+      toggleModifiers: document.getElementById("toggle-modifiers"),
+      toggleLog: document.getElementById("toggle-log"),
+      toggleCompact: document.getElementById("toggle-compact"),
+      summaryCards: document.getElementById("summary-cards"),
+      laneDashboard: document.getElementById("lane-dashboard"),
+      casualtiesBody: document.getElementById("casualties-body"),
+      sparkA: document.getElementById("spark-a"),
+      sparkB: document.getElementById("spark-b"),
+      eventLog: document.getElementById("event-log"),
+      eventCard: document.getElementById("event-card"),
+      whyCard: document.getElementById("why-card"),
+      whyPanel: document.getElementById("why-panel"),
+      exportSetup: document.getElementById("export-setup"),
+      exportReport: document.getElementById("export-report")
+    };
+
+    const statusThresholds = [
+      { status: "steady", min: 60 },
+      { status: "wavering", min: 45 },
+      { status: "shaken", min: 30 },
+      { status: "routing", min: 15 },
+      { status: "routed", min: 0 }
+    ];
+
+    function setByPath(obj, path, value) {
+      const parts = path.split(".");
+      let current = obj;
+      while (parts.length > 1) {
+        const key = parts.shift();
+        if (!(key in current)) {
+          current[key] = {};
+        }
+        current = current[key];
+      }
+      current[parts[0]] = value;
+    }
+
+    function getByPath(obj, path) {
+      return path.split(".").reduce((acc, key) => acc?.[key], obj);
+    }
+
+    function fillSelect(select, values) {
+      select.innerHTML = values.map((value) => `<option value="${value}">${value}</option>`).join("");
+    }
+
+    function createSliderField({ label, value, min, max, path, step = 1 }) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "field";
+      const labelEl = document.createElement("label");
+      labelEl.textContent = label;
+      const row = document.createElement("div");
+      row.className = "slider-row";
+      const input = document.createElement("input");
+      input.type = "range";
+      input.min = min;
+      input.max = max;
+      input.step = step;
+      input.value = value;
+      input.dataset.path = path;
+      input.setAttribute("aria-label", label);
+      const output = document.createElement("span");
+      output.className = "slider-value";
+      output.textContent = value;
+      input.addEventListener("input", () => {
+        output.textContent = input.value;
+        updateFromInput(input);
+        renderUnitComputations();
+      });
+      row.append(input, output);
+      wrapper.append(labelEl, row);
+      return wrapper;
+    }
+
+    function createTextField({ label, value, path, type = "text" }) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "field";
+      const labelEl = document.createElement("label");
+      labelEl.textContent = label;
+      const input = document.createElement("input");
+      input.type = type;
+      input.value = value;
+      input.dataset.path = path;
+      input.setAttribute("aria-label", label);
+      input.addEventListener("input", () => updateFromInput(input));
+      wrapper.append(labelEl, input);
+      return wrapper;
+    }
+
+    function createSelectField({ label, value, path, options }) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "field";
+      const labelEl = document.createElement("label");
+      labelEl.textContent = label;
+      const select = document.createElement("select");
+      select.dataset.path = path;
+      fillSelect(select, options);
+      select.value = value;
+      select.setAttribute("aria-label", label);
+      select.addEventListener("change", () => updateFromInput(select));
+      wrapper.append(labelEl, select);
+      return wrapper;
+    }
+
+    function updateFromInput(input) {
+      const path = input.dataset.path;
+      if (!path) return;
+      const rawValue = input.type === "number" || input.type === "range" ? Number(input.value) : input.value;
+      let value = Number.isNaN(rawValue) ? input.value : rawValue;
+      if (path.endsWith(".size")) {
+        value = Math.max(1, Number(value) || 1);
+        input.value = value;
+      }
+      setByPath(state.setup, path, value);
+      validateLanes();
+    }
+
+    function renderBaseInputs() {
+      elements.battleName.value = state.setup.battle.name;
+      elements.battleDuration.value = state.setup.battle.maxDurationMinutes;
+      elements.battleSeed.value = state.setup.battle.seed;
+      fillSelect(elements.battleTimeStep, options.timeSteps);
+      elements.battleTimeStep.value = state.setup.battle.timeStepSeconds;
+
+      [
+        elements.battleName,
+        elements.battleDuration,
+        elements.battleSeed,
+        elements.battleTimeStep
+      ].forEach((el) => {
+        el.addEventListener("input", () => updateFromInput(el));
+        el.addEventListener("change", () => updateFromInput(el));
+      });
+
+      fillSelect(elements.envWeather, options.weather);
+      fillSelect(elements.envTemp, options.temperature);
+      fillSelect(elements.envVisibility, options.visibility);
+      fillSelect(elements.envGround, options.ground);
+      elements.envWeather.value = state.setup.environment.weather;
+      elements.envTemp.value = state.setup.environment.temperature;
+      elements.envVisibility.value = state.setup.environment.visibility;
+      elements.envGround.value = state.setup.environment.ground;
+
+      [
+        elements.envWeather,
+        elements.envTemp,
+        elements.envVisibility,
+        elements.envGround
+      ].forEach((el) => el.addEventListener("change", () => updateFromInput(el)));
+
+      fillSelect(elements.speedSelect, options.speed);
+      elements.speedSelect.value = state.speed;
+    }
+
+    function renderEnvironmentLanes() {
+      elements.envLanes.innerHTML = "<h3>Lane Terrain Matrix</h3>";
+      ["left", "center", "right"].forEach((lane) => {
+        const laneRow = document.createElement("div");
+        laneRow.className = "grid-2";
+        laneRow.style.marginBottom = "8px";
+        const terrainField = createSelectField({
+          label: `${lane} terrain`,
+          value: state.setup.environment.lanes[lane].terrain,
+          path: `environment.lanes.${lane}.terrain`,
+          options: options.laneTerrain
+        });
+        const advantageField = createSelectField({
+          label: `${lane} advantage`,
+          value: state.setup.environment.lanes[lane].advantage,
+          path: `environment.lanes.${lane}.advantage`,
+          options: options.laneAdvantage
+        });
+        laneRow.append(terrainField, advantageField);
+        elements.envLanes.append(laneRow);
+      });
+    }
+
+    function renderSideTabs() {
+      elements.sideTabs.innerHTML = "";
+      ["sideA", "sideB"].forEach((side) => {
+        const button = document.createElement("button");
+        button.className = `tab-button ${state.ui.activeSide === side ? "active" : ""}`;
+        button.textContent = state.setup[side].name;
+        button.addEventListener("click", () => {
+          state.ui.activeSide = side;
+          renderSideTabs();
+          renderSideSettings();
+        });
+        elements.sideTabs.append(button);
+      });
+    }
+
+    function renderSideSettings() {
+      const sideKey = state.ui.activeSide;
+      const side = state.setup[sideKey];
+      elements.sideSettings.innerHTML = "";
+      const grid = document.createElement("div");
+      grid.className = "grid-2";
+      grid.append(
+        createTextField({ label: "Name", value: side.name, path: `${sideKey}.name` }),
+        createSelectField({ label: "Doctrine", value: side.doctrine, path: `${sideKey}.doctrine`, options: options.doctrine })
+      );
+      grid.append(
+        createSliderField({ label: "Base discipline", value: side.baseDiscipline, min: 0, max: 100, path: `${sideKey}.baseDiscipline` }),
+        createSliderField({ label: "Base morale", value: side.baseMorale, min: 0, max: 100, path: `${sideKey}.baseMorale` })
+      );
+      elements.sideSettings.append(grid);
+    }
+
+    function renderCommanderSettings() {
+      elements.commanderSettings.innerHTML = "";
+      ["sideA", "sideB"].forEach((sideKey) => {
+        const commander = state.setup[sideKey].commander;
+        const wrapper = document.createElement("div");
+        wrapper.className = "lane-section";
+        wrapper.innerHTML = `<h3>${state.setup[sideKey].name} Commander</h3>`;
+        const grid = document.createElement("div");
+        grid.className = "grid-2";
+        grid.append(
+          createTextField({ label: "Name", value: commander.name, path: `${sideKey}.commander.name` }),
+          createSliderField({ label: "Leadership", value: commander.leadership, min: 0, max: 100, path: `${sideKey}.commander.leadership` }),
+          createSliderField({ label: "Tactics", value: commander.tactics, min: 0, max: 100, path: `${sideKey}.commander.tactics` }),
+          createSliderField({ label: "Caution", value: commander.caution, min: 0, max: 100, path: `${sideKey}.commander.caution` }),
+          createSliderField({ label: "Charisma", value: commander.charisma, min: 0, max: 100, path: `${sideKey}.commander.charisma` })
+        );
+        wrapper.append(grid);
+        elements.commanderSettings.append(wrapper);
+      });
+    }
+
+    function renderModifierSettings() {
+      elements.modifierSettings.innerHTML = "";
+      const grid = document.createElement("div");
+      grid.className = "grid-2";
+      grid.append(
+        createSliderField({ label: "Randomness", value: state.setup.modifiers.randomness, min: 0, max: 100, path: "modifiers.randomness" }),
+        createSliderField({ label: "Lethality", value: state.setup.modifiers.lethality, min: 0, max: 100, path: "modifiers.lethality" }),
+        createSliderField({ label: "Morale shock", value: state.setup.modifiers.moraleShock, min: 0, max: 100, path: "modifiers.moraleShock" })
+      );
+      elements.modifierSettings.append(grid);
+    }
+
+    function renderLaneTabs() {
+      elements.laneTabs.innerHTML = "";
+      ["sideA", "sideB"].forEach((side) => {
+        const button = document.createElement("button");
+        button.className = `tab-button ${state.ui.activeLaneSide === side ? "active" : ""}`;
+        button.textContent = `${state.setup[side].name} lanes`;
+        button.addEventListener("click", () => {
+          state.ui.activeLaneSide = side;
+          renderLaneTabs();
+          renderLaneSettings();
+        });
+        elements.laneTabs.append(button);
+      });
+    }
+
+    function renderLaneSettings() {
+      const sideKey = state.ui.activeLaneSide;
+      elements.laneSettings.innerHTML = "";
+      ["left", "center", "right"].forEach((lane) => {
+        const laneData = state.setup[sideKey].lanes[lane];
+        const section = document.createElement("div");
+        section.className = "lane-section";
+        section.innerHTML = `<h3>${lane.toUpperCase()} Lane</h3>`;
+
+        const grid = document.createElement("div");
+        grid.className = "grid-2";
+        grid.append(
+          createSelectField({ label: "Tactic", value: laneData.tactic, path: `${sideKey}.lanes.${lane}.tactic`, options: options.tactics }),
+          createSliderField({ label: "Aggressiveness", value: laneData.aggressiveness, min: 0, max: 100, path: `${sideKey}.lanes.${lane}.aggressiveness` }),
+          createSliderField({ label: "Coordination", value: laneData.coordination, min: 0, max: 100, path: `${sideKey}.lanes.${lane}.coordination` })
+        );
+        section.append(grid);
+
+        const commanderToggle = document.createElement("label");
+        commanderToggle.style.display = "flex";
+        commanderToggle.style.alignItems = "center";
+        commanderToggle.style.gap = "8px";
+        commanderToggle.style.margin = "8px 0";
+        const toggleInput = document.createElement("input");
+        toggleInput.type = "checkbox";
+        toggleInput.checked = Boolean(laneData.laneCommander);
+        toggleInput.setAttribute("aria-label", "Use lane commander override");
+        toggleInput.addEventListener("change", () => {
+          laneData.laneCommander = toggleInput.checked
+            ? {
+                name: `${state.setup[sideKey].commander.name} (Lane)`,
+                leadership: state.setup[sideKey].commander.leadership,
+                tactics: state.setup[sideKey].commander.tactics,
+                caution: state.setup[sideKey].commander.caution,
+                charisma: state.setup[sideKey].commander.charisma
+              }
+            : null;
+          renderLaneSettings();
+        });
+        commanderToggle.append(toggleInput, document.createTextNode("Override with lane commander"));
+        section.append(commanderToggle);
+
+        if (laneData.laneCommander) {
+          const laneCommanderGrid = document.createElement("div");
+          laneCommanderGrid.className = "grid-2";
+          laneCommanderGrid.append(
+            createTextField({ label: "Commander name", value: laneData.laneCommander.name, path: `${sideKey}.lanes.${lane}.laneCommander.name` }),
+            createSliderField({ label: "Leadership", value: laneData.laneCommander.leadership, min: 0, max: 100, path: `${sideKey}.lanes.${lane}.laneCommander.leadership` }),
+            createSliderField({ label: "Tactics", value: laneData.laneCommander.tactics, min: 0, max: 100, path: `${sideKey}.lanes.${lane}.laneCommander.tactics` }),
+            createSliderField({ label: "Caution", value: laneData.laneCommander.caution, min: 0, max: 100, path: `${sideKey}.lanes.${lane}.laneCommander.caution` }),
+            createSliderField({ label: "Charisma", value: laneData.laneCommander.charisma, min: 0, max: 100, path: `${sideKey}.lanes.${lane}.laneCommander.charisma` })
+          );
+          section.append(laneCommanderGrid);
+        }
+
+        const unitsWrapper = document.createElement("div");
+        unitsWrapper.style.marginTop = "8px";
+        laneData.units.forEach((unit, index) => {
+          unitsWrapper.append(createUnitEditor(sideKey, lane, unit, index));
+        });
+
+        const addButton = document.createElement("button");
+        addButton.className = "btn secondary";
+        addButton.textContent = "Add unit";
+        addButton.addEventListener("click", () => {
+          laneData.units.push(defaultUnit(`Unit ${laneData.units.length + 1}`, "spearmen"));
+          renderLaneSettings();
+          renderUnitComputations();
+          validateLanes();
+        });
+
+        section.append(unitsWrapper, addButton);
+        elements.laneSettings.append(section);
+      });
+    }
+
+    function createUnitEditor(sideKey, lane, unit, index) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "unit-card";
+      const header = document.createElement("div");
+      header.className = "unit-header";
+      header.innerHTML = `<strong>${unit.name}</strong><span class="pill">${unit.type}</span>`;
+      const actions = document.createElement("div");
+      actions.className = "unit-actions";
+      const removeButton = document.createElement("button");
+      removeButton.textContent = "Remove";
+      removeButton.className = "btn";
+      removeButton.addEventListener("click", () => {
+        const units = state.setup[sideKey].lanes[lane].units;
+        if (units.length <= 1) return;
+        units.splice(index, 1);
+        renderLaneSettings();
+        renderUnitComputations();
+        validateLanes();
+      });
+      actions.append(removeButton);
+      header.append(actions);
+
+      const grid = document.createElement("div");
+      grid.className = "grid-2";
+
+      grid.append(
+        createTextField({ label: "Name", value: unit.name, path: `${sideKey}.lanes.${lane}.units.${index}.name` }),
+        createSelectField({ label: "Type", value: unit.type, path: `${sideKey}.lanes.${lane}.units.${index}.type`, options: options.unitTypes })
+      );
+      grid.append(
+        createTextField({ label: "Size", value: unit.size, path: `${sideKey}.lanes.${lane}.units.${index}.size`, type: "number" }),
+        createSliderField({ label: "Training", value: unit.training, min: 0, max: 100, path: `${sideKey}.lanes.${lane}.units.${index}.training` })
+      );
+      grid.append(
+        createSliderField({ label: "Armor", value: unit.armor, min: 0, max: 100, path: `${sideKey}.lanes.${lane}.units.${index}.armor` }),
+        createSliderField({ label: "Weapon quality", value: unit.weaponQuality, min: 0, max: 100, path: `${sideKey}.lanes.${lane}.units.${index}.weaponQuality` })
+      );
+      grid.append(
+        createSliderField({ label: "Morale", value: unit.morale, min: 0, max: 100, path: `${sideKey}.lanes.${lane}.units.${index}.morale` }),
+        createSliderField({ label: "Cohesion", value: unit.cohesion, min: 0, max: 100, path: `${sideKey}.lanes.${lane}.units.${index}.cohesion` })
+      );
+      grid.append(
+        createSliderField({ label: "Fatigue", value: unit.fatigue, min: 0, max: 100, path: `${sideKey}.lanes.${lane}.units.${index}.fatigue` }),
+        createSliderField({ label: "Ranged skill", value: unit.rangedSkill, min: 0, max: 100, path: `${sideKey}.lanes.${lane}.units.${index}.rangedSkill` })
+      );
+      grid.append(
+        createSliderField({ label: "Speed", value: unit.speed, min: 0, max: 100, path: `${sideKey}.lanes.${lane}.units.${index}.speed` })
+      );
+
+      const computed = document.createElement("div");
+      computed.className = "pill";
+      computed.dataset.unitComputed = unit.id;
+      computed.textContent = "Attack 0 · Defense 0 · Shock 0 · Rout 0";
+
+      wrapper.append(header, grid, computed);
+      return wrapper;
+    }
+
+    function renderUnitComputations() {
+      document.querySelectorAll("[data-unit-computed]").forEach((el) => {
+        const unitId = el.dataset.unitComputed;
+        const unit = findUnitById(unitId);
+        if (!unit) return;
+        const power = computeUnitBasePower(unit);
+        const routThreshold = Math.max(10, Math.round((unit.training + unit.cohesion) / 4));
+        el.textContent = `Attack ${power.attack.toFixed(1)} · Defense ${power.defense.toFixed(1)} · Shock ${power.shock.toFixed(1)} · Rout ${routThreshold}`;
+      });
+    }
+
+    function computeUnitBasePower(unit) {
+      const baseline = unitBaselines[unit.type];
+      const quality = 0.5 + unit.weaponQuality / 200;
+      return {
+        attack: baseline.melee * (0.5 + unit.training / 200) * quality,
+        defense: baseline.defense * (0.5 + unit.armor / 200) * quality,
+        shock: baseline.shock * (0.5 + unit.training / 200) * quality
+      };
+    }
+
+    function findUnitById(unitId) {
+      for (const sideKey of ["sideA", "sideB"]) {
+        for (const lane of ["left", "center", "right"]) {
+          const unit = state.setup[sideKey].lanes[lane].units.find((item) => item.id === unitId);
+          if (unit) return unit;
+        }
+      }
+      return null;
+    }
+
+    function validateLanes() {
+      const missing = [];
+      ["sideA", "sideB"].forEach((sideKey) => {
+        ["left", "center", "right"].forEach((lane) => {
+          const units = state.setup[sideKey].lanes[lane].units;
+          if (!units.length) {
+            missing.push(`${state.setup[sideKey].name} ${lane}`);
+          }
+        });
+      });
+      if (missing.length) {
+        elements.laneWarning.textContent = `Warning: ${missing.join(", ")} lanes have no units.`;
+      } else {
+        elements.laneWarning.textContent = "";
+      }
+    }
+
+    function createRng(seedText) {
+      let seed = 0;
+      if (seedText) {
+        for (let i = 0; i < seedText.length; i += 1) {
+          seed = (seed << 5) - seed + seedText.charCodeAt(i);
+          seed |= 0;
+        }
+      } else {
+        seed = Math.floor(Math.random() * 2 ** 31);
+      }
+      return function rng() {
+        seed |= 0;
+        seed = (seed + 0x6d2b79f5) | 0;
+        let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function initBattleState() {
+      const rng = createRng(state.setup.battle.seed.trim());
+      const buildSide = (sideKey) => {
+        const side = state.setup[sideKey];
+        const runtimeLanes = {};
+        ["left", "center", "right"].forEach((lane) => {
+          runtimeLanes[lane] = {
+            engagement: "none",
+            pressure: 0,
+            units: side.lanes[lane].units.map((unit) => ({
+              id: unit.id,
+              startingSize: unit.size,
+              currentSize: unit.size,
+              killed: 0,
+              wounded: 0,
+              morale: unit.morale,
+              cohesion: unit.cohesion,
+              fatigue: unit.fatigue,
+              status: "steady"
+            }))
+          };
+        });
+        return {
+          lanes: runtimeLanes,
+          totals: { starting: totalUnits(sideKey, "size"), current: totalUnits(sideKey, "size"), killed: 0, wounded: 0, routed: 0 }
+        };
+      };
+
+      state.runtime = {
+        timeSeconds: 0,
+        rng,
+        sideA: buildSide("sideA"),
+        sideB: buildSide("sideB"),
+        events: [],
+        ended: false,
+        winner: null,
+        timeline: []
+      };
+      logEvent("combat", "both", "all", "Forces take their positions.", "info");
+      updateOutputs();
+    }
+
+    function totalUnits(sideKey, field) {
+      return ["left", "center", "right"].reduce((sum, lane) => {
+        return sum + state.setup[sideKey].lanes[lane].units.reduce((acc, unit) => acc + (unit[field] || 0), 0);
+      }, 0);
+    }
+
+    function logEvent(category, side, lane, message, severity = "info", data = {}) {
+      state.runtime.events.unshift({
+        t: state.runtime.timeSeconds,
+        category,
+        side,
+        lane,
+        message,
+        severity,
+        data
+      });
+    }
+
+    function stepSimulation() {
+      if (!state.runtime || state.runtime.ended) return;
+      const setup = state.setup;
+      const runtime = state.runtime;
+      const rng = runtime.rng;
+      const timeStep = setup.battle.timeStepSeconds;
+      const randomness = setup.modifiers.randomness / 100;
+      const lethality = setup.modifiers.lethality / 100;
+      const moraleShockScale = setup.modifiers.moraleShock / 100;
+
+      runtime.timeSeconds += timeStep;
+
+      ["left", "center", "right"].forEach((lane) => {
+        resolveLaneCombat(lane, randomness, lethality, moraleShockScale, rng);
+      });
+
+      triggerCommanderEvents(rng);
+      triggerWeatherEffects(rng);
+
+      updateTotals();
+      updateStatuses();
+      checkVictory();
+      recordTimelineSample();
+      updateOutputs();
+    }
+
+    function triggerCommanderEvents(rng) {
+      if (rng() > 0.03) return;
+      const sideKey = rng() > 0.5 ? "sideA" : "sideB";
+      const lane = ["left", "center", "right"][Math.floor(rng() * 3)];
+      const runtimeLane = state.runtime[sideKey].lanes[lane];
+      runtimeLane.units.forEach((unit) => {
+        unit.morale = clamp(unit.morale - 4, 0, 100);
+      });
+      logEvent("commander_event", sideKey, lane, `${state.setup[sideKey].commander.name} is shaken by a close call. Morale dips.`, "warn");
+    }
+
+    function triggerWeatherEffects(rng) {
+      if (state.setup.environment.weather === "clear") return;
+      if (rng() > 0.04) return;
+      ["sideA", "sideB"].forEach((sideKey) => {
+        ["left", "center", "right"].forEach((lane) => {
+          state.runtime[sideKey].lanes[lane].units.forEach((unit) => {
+            unit.cohesion = clamp(unit.cohesion - 1, 0, 100);
+          });
+        });
+      });
+      logEvent("weather_effect", "both", "all", `The ${state.setup.environment.weather} degrades cohesion.`, "info");
+    }
+
+    function resolveLaneCombat(lane, randomness, lethality, moraleShockScale, rng) {
+      const laneA = state.runtime.sideA.lanes[lane];
+      const laneB = state.runtime.sideB.lanes[lane];
+      const setupA = state.setup.sideA.lanes[lane];
+      const setupB = state.setup.sideB.lanes[lane];
+      const terrain = terrainModifiers[state.setup.environment.lanes[lane].terrain];
+      const weather = weatherModifiers[state.setup.environment.weather];
+      const ground = groundModifiers[state.setup.environment.ground];
+
+      const frontA = pickFrontUnit(laneA);
+      const frontB = pickFrontUnit(laneB);
+
+      laneA.engagement = frontA && frontB ? "melee" : frontA || frontB ? "missile" : "none";
+      laneB.engagement = laneA.engagement;
+
+      if (!frontA || !frontB) return;
+
+      const unitA = findSetupUnit("sideA", frontA.id);
+      const unitB = findSetupUnit("sideB", frontB.id);
+
+      const tacticA = tacticsModifiers[setupA.tactic];
+      const tacticB = tacticsModifiers[setupB.tactic];
+
+      const effectiveA = computeEffectiveStrength(unitA, frontA, setupA, state.setup.sideA, "sideA", lane, terrain, weather, ground);
+      const effectiveB = computeEffectiveStrength(unitB, frontB, setupB, state.setup.sideB, "sideB", lane, terrain, weather, ground);
+
+      const missileA = unitA && unitBaselines[unitA.type].range > 0 ? unitA.rangedSkill / 100 : 0;
+      const missileB = unitB && unitBaselines[unitB.type].range > 0 ? unitB.rangedSkill / 100 : 0;
+
+      const randomnessFactor = 0.9 + rng() * randomness * 0.2;
+
+      if (missileA > 0 || missileB > 0) {
+        const damageA = Math.max(0, (missileA * effectiveA.strength * 0.002) * weather.missile * terrain.missile * randomnessFactor);
+        const damageB = Math.max(0, (missileB * effectiveB.strength * 0.002) * weather.missile * terrain.missile * randomnessFactor);
+        applyLosses(frontB, damageA, moraleShockScale, "missile", lane, "sideA");
+        applyLosses(frontA, damageB, moraleShockScale, "missile", lane, "sideB");
+        frontB.cohesion = clamp(frontB.cohesion - damageA * 0.3 * (tacticB.cohesionLoss || 1), 0, 100);
+        frontA.cohesion = clamp(frontA.cohesion - damageB * 0.3 * (tacticA.cohesionLoss || 1), 0, 100);
+      }
+
+      const meleeA = effectiveA.strength * (tacticA.meleeAttack || 1) * lethality * (0.8 + rng() * randomness * 0.4);
+      const meleeB = effectiveB.strength * (tacticB.meleeAttack || 1) * lethality * (0.8 + rng() * randomness * 0.4);
+
+      const inflictedOnB = meleeA / Math.max(1, effectiveB.strength) * 4;
+      const inflictedOnA = meleeB / Math.max(1, effectiveA.strength) * 4;
+
+      applyLosses(frontB, inflictedOnB, moraleShockScale, "melee", lane, "sideA");
+      applyLosses(frontA, inflictedOnA, moraleShockScale, "melee", lane, "sideB");
+
+      frontA.fatigue = clamp(frontA.fatigue + (2 * (tacticA.fatigueGain || 1) * ground.fatigueGain), 0, 100);
+      frontB.fatigue = clamp(frontB.fatigue + (2 * (tacticB.fatigueGain || 1) * ground.fatigueGain), 0, 100);
+
+      frontA.cohesion = clamp(frontA.cohesion - (1.5 * (tacticA.cohesionLoss || 1) * terrain.cohesionLoss), 0, 100);
+      frontB.cohesion = clamp(frontB.cohesion - (1.5 * (tacticB.cohesionLoss || 1) * terrain.cohesionLoss), 0, 100);
+    }
+
+    function computeEffectiveStrength(unit, runtimeUnit, laneSetup, sideSetup, sideKey, laneName, terrain, weather, ground) {
+      const base = runtimeUnit.currentSize;
+      const training = unit.training / 200;
+      const cohesion = runtimeUnit.cohesion / 200;
+      const morale = runtimeUnit.morale / 250;
+      const fatigue = (100 - runtimeUnit.fatigue) / 300;
+      const strength = base * (0.5 + training) * (0.5 + cohesion) * (0.6 + morale) * (0.7 + fatigue);
+      const tactic = tacticsModifiers[laneSetup.tactic];
+      const commander = laneSetup.laneCommander || sideSetup.commander;
+      const leadership = commander.leadership / 200;
+      const terrainBonus = terrain.move;
+      const advantage = state.setup.environment.lanes[laneName].advantage;
+      const advantageBonus = advantage === "neutral"
+        ? 1
+        : advantage === "sideA_advantage"
+          ? (sideKey === "sideA" ? 1.08 : 0.92)
+          : (sideKey === "sideB" ? 1.08 : 0.92);
+      const weatherPenalty = weather.visibility;
+      const doctrineBonus = sideSetup.doctrine === "aggressive" ? 1.05 : sideSetup.doctrine === "defensive" ? 0.95 : 1.0;
+      const groundShock = ground.shock;
+      return {
+        strength: strength * doctrineBonus * terrainBonus * weatherPenalty * groundShock * advantageBonus,
+        breakdown: {
+          base,
+          training: 0.5 + training,
+          cohesion: 0.5 + cohesion,
+          morale: 0.6 + morale,
+          fatigue: 0.7 + fatigue,
+          tactic: tactic.meleeAttack || 1,
+          leadership: 1 + leadership,
+          commander: commander.name,
+          doctrine: doctrineBonus,
+          terrain: terrainBonus,
+          advantage: advantageBonus,
+          visibility: weatherPenalty,
+          ground: groundShock
+        }
+      };
+    }
+
+    function applyLosses(unitRuntime, rawLosses, moraleShockScale, category, lane, attackerSide) {
+      if (!unitRuntime || unitRuntime.currentSize <= 0) return;
+      const losses = Math.min(unitRuntime.currentSize, Math.max(0, rawLosses));
+      if (losses <= 0.1) return;
+      const killed = losses * 0.4;
+      const wounded = losses * 0.6;
+      unitRuntime.currentSize = Math.max(0, unitRuntime.currentSize - losses);
+      unitRuntime.killed += killed;
+      unitRuntime.wounded += wounded;
+      const moraleDrop = losses * 0.04 * moraleShockScale;
+      unitRuntime.morale = clamp(unitRuntime.morale - moraleDrop, 0, 100);
+      if (losses > 3) {
+        logEvent("combat", attackerSide, lane, `${attackerSide === "sideA" ? state.setup.sideA.name : state.setup.sideB.name} inflicts ${losses.toFixed(0)} losses (${category}).`, "info");
+      }
+    }
+
+    function pickFrontUnit(laneRuntime) {
+      return laneRuntime.units.find((unit) => unit.currentSize > 0 && unit.status !== "routed") || null;
+    }
+
+    function findSetupUnit(sideKey, id) {
+      for (const lane of ["left", "center", "right"]) {
+        const unit = state.setup[sideKey].lanes[lane].units.find((item) => item.id === id);
+        if (unit) return unit;
+      }
+      return null;
+    }
+
+    function updateTotals() {
+      ["sideA", "sideB"].forEach((sideKey) => {
+        const runtimeSide = state.runtime[sideKey];
+        let starting = 0;
+        let current = 0;
+        let killed = 0;
+        let wounded = 0;
+        let routed = 0;
+        ["left", "center", "right"].forEach((lane) => {
+          runtimeSide.lanes[lane].units.forEach((unit) => {
+            starting += unit.startingSize;
+            current += unit.currentSize;
+            killed += unit.killed;
+            wounded += unit.wounded;
+            if (unit.status === "routed") routed += unit.currentSize;
+          });
+        });
+        runtimeSide.totals = { starting, current, killed, wounded, routed };
+      });
+    }
+
+    function updateStatuses() {
+      ["sideA", "sideB"].forEach((sideKey) => {
+        ["left", "center", "right"].forEach((lane) => {
+          const runtimeLane = state.runtime[sideKey].lanes[lane];
+          runtimeLane.units.forEach((unit) => {
+            const threshold = Math.max(10, Math.round((unit.cohesion + unit.startingSize / 50) / 4));
+            if (unit.morale < threshold || unit.cohesion < 15) {
+              unit.status = unit.morale < 5 ? "routed" : "routing";
+              if (unit.status === "routed") {
+                const setupUnit = findSetupUnit(sideKey, unit.id);
+                logEvent("rout", sideKey, lane, `${setupUnit?.name || "Unit"} has routed.`, "warn");
+              }
+              return;
+            }
+            for (const status of statusThresholds) {
+              if (unit.morale >= status.min) {
+                unit.status = status.status;
+                break;
+              }
+            }
+          });
+        });
+      });
+    }
+
+    function checkVictory() {
+      const maxTime = state.setup.battle.maxDurationMinutes * 60;
+      if (state.runtime.timeSeconds >= maxTime) {
+        state.runtime.ended = true;
+        decideWinner();
+        return;
+      }
+      const routedA = state.runtime.sideA.totals.routed / Math.max(1, state.runtime.sideA.totals.starting);
+      const routedB = state.runtime.sideB.totals.routed / Math.max(1, state.runtime.sideB.totals.starting);
+      if (routedA >= 0.5 || routedB >= 0.5) {
+        state.runtime.ended = true;
+        decideWinner();
+      }
+    }
+
+    function decideWinner() {
+      const strengthA = calculateSideStrength("sideA");
+      const strengthB = calculateSideStrength("sideB");
+      if (Math.abs(strengthA - strengthB) < 1) {
+        state.runtime.winner = "draw";
+      } else {
+        state.runtime.winner = strengthA > strengthB ? "sideA" : "sideB";
+      }
+      logEvent("combat", "both", "all", `Battle ends. Winner: ${state.runtime.winner || "draw"}.`, "critical");
+      stopSimulation();
+    }
+
+    function calculateSideStrength(sideKey) {
+      let sum = 0;
+      ["left", "center", "right"].forEach((lane) => {
+        state.runtime[sideKey].lanes[lane].units.forEach((unit) => {
+          sum += unit.currentSize * (0.5 + unit.cohesion / 200) * (0.6 + unit.morale / 250);
+        });
+      });
+      return sum;
+    }
+
+    function recordTimelineSample() {
+      state.runtime.timeline.push({
+        t: state.runtime.timeSeconds,
+        sideA_strength: calculateSideStrength("sideA"),
+        sideB_strength: calculateSideStrength("sideB"),
+        sideA_routed: state.runtime.sideA.totals.routed,
+        sideB_routed: state.runtime.sideB.totals.routed
+      });
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function updateOutputs() {
+      if (!state.runtime) return;
+      renderSummary();
+      renderLaneDashboard();
+      renderCasualties();
+      renderTimeline();
+      renderEventLog();
+      if (state.ui.selectedUnit) {
+        renderWhyPanel(state.ui.selectedUnit);
+      }
+    }
+
+    function renderSummary() {
+      const runtime = state.runtime;
+      const status = runtime.ended ? "ended" : runtime.timeSeconds === 0 ? "setup" : "engaged";
+      const routedA = ((runtime.sideA.totals.routed / Math.max(1, runtime.sideA.totals.starting)) * 100).toFixed(1);
+      const routedB = ((runtime.sideB.totals.routed / Math.max(1, runtime.sideB.totals.starting)) * 100).toFixed(1);
+      const summary = [
+        { label: "Time elapsed", value: `${Math.floor(runtime.timeSeconds / 60)}m` },
+        { label: "Status", value: status },
+        { label: `${state.setup.sideA.name} remaining`, value: runtime.sideA.totals.current.toFixed(0) },
+        { label: `${state.setup.sideB.name} remaining`, value: runtime.sideB.totals.current.toFixed(0) },
+        { label: `${state.setup.sideA.name} routed %`, value: `${routedA}%` },
+        { label: `${state.setup.sideB.name} routed %`, value: `${routedB}%` }
+      ];
+      elements.summaryCards.innerHTML = summary.map((item) => `
+        <div class="summary-card">
+          <h4>${item.label}</h4>
+          <p>${item.value}</p>
+        </div>
+      `).join("");
+    }
+
+    function renderLaneDashboard() {
+      elements.laneDashboard.innerHTML = "";
+      ["left", "center", "right"].forEach((lane) => {
+        const column = document.createElement("div");
+        column.className = "lane-column";
+        column.innerHTML = `<h4>${lane.toUpperCase()} Lane</h4>`;
+        const stacks = document.createElement("div");
+        stacks.className = "unit-stack";
+        stacks.append(renderLaneSideStack("sideA", lane));
+        stacks.append(renderLaneSideStack("sideB", lane));
+        column.append(stacks);
+        elements.laneDashboard.append(column);
+      });
+    }
+
+    function renderLaneSideStack(sideKey, lane) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "unit-stack";
+      const title = document.createElement("div");
+      title.className = "badge";
+      title.textContent = sideKey === "sideA" ? state.setup.sideA.name : state.setup.sideB.name;
+      wrapper.append(title);
+      const runtimeLane = state.runtime[sideKey].lanes[lane];
+      runtimeLane.units.forEach((unit) => {
+        const setupUnit = findSetupUnit(sideKey, unit.id);
+        const chip = document.createElement("div");
+        chip.className = "unit-chip";
+        chip.innerHTML = `
+          <strong>${setupUnit?.name || "Unit"}</strong>
+          <div class="badge ${statusBadgeClass(unit.status)}">${unit.status}</div>
+          <div class="bars">
+            <div class="bar morale"><span style="width:${unit.morale}%"></span></div>
+            <div class="bar cohesion"><span style="width:${unit.cohesion}%"></span></div>
+            <div class="bar fatigue"><span style="width:${unit.fatigue}%"></span></div>
+          </div>
+        `;
+        chip.addEventListener("click", () => {
+          state.ui.selectedUnit = { sideKey, lane, unitId: unit.id };
+          renderWhyPanel(state.ui.selectedUnit);
+        });
+        wrapper.append(chip);
+      });
+      return wrapper;
+    }
+
+    function statusBadgeClass(status) {
+      if (status === "steady") return "success";
+      if (status === "wavering" || status === "shaken") return "warn";
+      return "danger";
+    }
+
+    function renderCasualties() {
+      const rows = [];
+      ["sideA", "sideB"].forEach((sideKey) => {
+        ["left", "center", "right"].forEach((lane) => {
+          const runtimeLane = state.runtime[sideKey].lanes[lane];
+          runtimeLane.units.forEach((unit) => {
+            const setupUnit = findSetupUnit(sideKey, unit.id);
+            rows.push(`
+              <tr>
+                <td>${sideKey === "sideA" ? state.setup.sideA.name : state.setup.sideB.name}</td>
+                <td>${lane}</td>
+                <td>${setupUnit?.name || "Unit"}</td>
+                <td>${unit.startingSize.toFixed(0)}</td>
+                <td>${unit.currentSize.toFixed(0)}</td>
+                <td>${unit.killed.toFixed(0)}</td>
+                <td>${unit.wounded.toFixed(0)}</td>
+                <td>${unit.status}</td>
+              </tr>
+            `);
+          });
+        });
+      });
+      elements.casualtiesBody.innerHTML = rows.join("");
+    }
+
+    function renderTimeline() {
+      const timeline = state.runtime.timeline.slice(-60);
+      const maxStrength = Math.max(1, ...timeline.map((item) => Math.max(item.sideA_strength, item.sideB_strength)));
+      elements.sparkA.innerHTML = timeline.map((item) => {
+        const height = (item.sideA_strength / maxStrength) * 100;
+        return `<span style="height:${height}%"></span>`;
+      }).join("");
+      elements.sparkB.innerHTML = timeline.map((item) => {
+        const height = (item.sideB_strength / maxStrength) * 100;
+        return `<span class="sideB" style="height:${height}%"></span>`;
+      }).join("");
+    }
+
+    function renderEventLog() {
+      elements.eventCard.style.display = state.ui.showLog ? "block" : "none";
+      if (!state.ui.showLog) return;
+      const events = state.runtime.events.slice(0, 40);
+      elements.eventLog.innerHTML = events.map((event) => {
+        return `<div class="log-item"><strong>[${Math.floor(event.t / 60)}m]</strong> ${event.message}</div>`;
+      }).join("");
+    }
+
+    function renderWhyPanel(selection) {
+      const runtimeUnit = state.runtime[selection.sideKey].lanes[selection.lane].units.find((unit) => unit.id === selection.unitId);
+      const setupUnit = findSetupUnit(selection.sideKey, selection.unitId);
+      if (!runtimeUnit || !setupUnit) return;
+      const laneSetup = state.setup[selection.sideKey].lanes[selection.lane];
+      const terrain = terrainModifiers[state.setup.environment.lanes[selection.lane].terrain];
+      const weather = weatherModifiers[state.setup.environment.weather];
+      const ground = groundModifiers[state.setup.environment.ground];
+      const effective = computeEffectiveStrength(setupUnit, runtimeUnit, laneSetup, state.setup[selection.sideKey], selection.sideKey, selection.lane, terrain, weather, ground);
+
+      elements.whyCard.style.display = state.ui.showModifiers ? "block" : "none";
+      if (!state.ui.showModifiers) return;
+
+      elements.whyPanel.innerHTML = `
+        <h3>${setupUnit.name}</h3>
+        <p><strong>Lane:</strong> ${selection.lane.toUpperCase()} · <strong>Type:</strong> ${setupUnit.type}</p>
+        <ul>
+          <li>Base strength: ${effective.breakdown.base.toFixed(0)}</li>
+          <li>Training modifier: ${effective.breakdown.training.toFixed(2)}</li>
+          <li>Cohesion modifier: ${effective.breakdown.cohesion.toFixed(2)}</li>
+          <li>Morale modifier: ${effective.breakdown.morale.toFixed(2)}</li>
+          <li>Fatigue modifier: ${effective.breakdown.fatigue.toFixed(2)}</li>
+          <li>Tactic modifier: ${effective.breakdown.tactic.toFixed(2)}</li>
+          <li>Leadership modifier: ${effective.breakdown.leadership.toFixed(2)}</li>
+          <li>Commander: ${effective.breakdown.commander}</li>
+          <li>Doctrine modifier: ${effective.breakdown.doctrine.toFixed(2)}</li>
+          <li>Terrain modifier: ${effective.breakdown.terrain.toFixed(2)}</li>
+          <li>Lane advantage: ${effective.breakdown.advantage.toFixed(2)}</li>
+          <li>Visibility modifier: ${effective.breakdown.visibility.toFixed(2)}</li>
+          <li>Ground shock modifier: ${effective.breakdown.ground.toFixed(2)}</li>
+        </ul>
+      `;
+    }
+
+    function bindControls() {
+      elements.runBtn.addEventListener("click", () => startSimulation());
+      elements.pauseBtn.addEventListener("click", () => stopSimulation());
+      elements.stepBtn.addEventListener("click", () => {
+        if (!state.runtime) initBattleState();
+        stepSimulation();
+      });
+      elements.resetBtn.addEventListener("click", () => {
+        stopSimulation();
+        initBattleState();
+      });
+      elements.speedSelect.addEventListener("change", () => {
+        state.speed = Number(elements.speedSelect.value);
+        if (state.timer) {
+          stopSimulation();
+          startSimulation();
+        }
+      });
+      elements.toggleModifiers.addEventListener("change", () => {
+        state.ui.showModifiers = elements.toggleModifiers.checked;
+        elements.whyCard.style.display = state.ui.showModifiers ? "block" : "none";
+      });
+      elements.toggleLog.addEventListener("change", () => {
+        state.ui.showLog = elements.toggleLog.checked;
+        renderEventLog();
+      });
+      elements.toggleCompact.addEventListener("change", () => {
+        state.ui.compact = elements.toggleCompact.checked;
+        document.body.classList.toggle("compact", state.ui.compact);
+      });
+
+      elements.exportSetup.addEventListener("click", () => {
+        downloadJson("battle_setup.json", state.setup);
+      });
+
+      elements.exportReport.addEventListener("click", () => {
+        if (!state.runtime) initBattleState();
+        const report = {
+          setup: state.setup,
+          result: {
+            winner: state.runtime.winner,
+            durationSeconds: state.runtime.timeSeconds,
+            sideA_totals: state.runtime.sideA.totals,
+            sideB_totals: state.runtime.sideB.totals,
+            per_unit_outcomes: collectUnitOutcomes(),
+            timeline_samples: state.runtime.timeline,
+            events: state.runtime.events
+          }
+        };
+        downloadJson("battle_report.json", report);
+      });
+
+      elements.battleImport.addEventListener("change", handleImport);
+
+      elements.toggleModifiers.checked = state.ui.showModifiers;
+      elements.toggleLog.checked = state.ui.showLog;
+      elements.toggleCompact.checked = state.ui.compact;
+    }
+
+    function startSimulation() {
+      if (!state.runtime) initBattleState();
+      if (state.timer) return;
+      const interval = 500 / state.speed;
+      state.timer = setInterval(() => {
+        for (let i = 0; i < state.speed; i += 1) {
+          stepSimulation();
+          if (state.runtime.ended) break;
+        }
+      }, interval);
+    }
+
+    function stopSimulation() {
+      if (state.timer) {
+        clearInterval(state.timer);
+        state.timer = null;
+      }
+    }
+
+    function downloadJson(filename, data) {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    function collectUnitOutcomes() {
+      const outcomes = [];
+      ["sideA", "sideB"].forEach((sideKey) => {
+        ["left", "center", "right"].forEach((lane) => {
+          state.runtime[sideKey].lanes[lane].units.forEach((unit) => {
+            outcomes.push({
+              side: sideKey,
+              lane,
+              id: unit.id,
+              startingSize: unit.startingSize,
+              currentSize: unit.currentSize,
+              killed: unit.killed,
+              wounded: unit.wounded,
+              morale: unit.morale,
+              cohesion: unit.cohesion,
+              fatigue: unit.fatigue,
+              status: unit.status
+            });
+          });
+        });
+      });
+      return outcomes;
+    }
+
+    function handleImport(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const imported = JSON.parse(reader.result);
+          if (imported && imported.battle && imported.sideA) {
+            state.setup = imported;
+            renderAll();
+            initBattleState();
+          }
+        } catch (error) {
+          console.error("Invalid JSON", error);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function renderAll() {
+      renderBaseInputs();
+      renderEnvironmentLanes();
+      renderSideTabs();
+      renderSideSettings();
+      renderCommanderSettings();
+      renderModifierSettings();
+      renderLaneTabs();
+      renderLaneSettings();
+      renderUnitComputations();
+      validateLanes();
+    }
+
+    renderAll();
+    initBattleState();
+    bindControls();
+  </script>
+</body>
+</html>
